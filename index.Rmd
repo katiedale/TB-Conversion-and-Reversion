@@ -1,0 +1,1213 @@
+---
+title: "Tuberculosis risk of conversion and reversion app"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: scroll
+runtime: shiny
+toc_float: false
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+library(shiny)
+library(dplyr)
+library(ggplot2)
+library(data.table)
+library(reshape2)
+library(shinythemes)
+
+# Doherty colours
+colDohertyBlue <- "#007dc5"
+colMidBlue <- "#007DC4"
+colDarkBlue <- "#005oa3"
+colLightBlue <- "#00acee"
+
+colred <- "#ee2224"
+colOrange <- "#F68421"
+colYellow <- "#ffd400"
+
+colGrey <- "#252729"
+
+colLightPink <- "#e9008b"
+colDarkPink <- "#e9008b"
+
+numSideBarWidth <- 3
+```
+
+Column {.no-padding}{.sidebar data-width=600}
+-----------------------------------------------------------------------
+
+### Select input parameters and press 'Submit'
+
+```{r}
+                                 fluidRow(
+                                    
+                                    # h3("Select input parameters and press 'Submit'",
+                                    #    style = "color: #007dc5; font-family: Arial"),
+                                    
+                                    
+                                    column(width = numSideBarWidth, 
+                                           
+                                           ##### Input - start year ####
+                                           numericInput(inputId = "StartYear",
+                                                        label = "Start year",
+                                                        min = 1800,
+                                                        max = 2200,
+                                                        value = 1950),
+                                           br(),
+                                           
+                                           uiOutput("return_numPlotYear")),
+                                    
+                                    column(width = 4, 
+                                           
+                                           ##### Input - age ####
+                                           sliderInput(inputId = "numMaxAge",
+                                                       label = "Age range of interest",
+                                                       min = 0,
+                                                       max = 100,
+                                                       value = 100),
+                                    
+                                    uiOutput("return_numCohortPlotYear")),
+                                    
+                                    column(width = 5, 
+                                           
+                                           ##### Input - start year ARC ####
+                                           numericInput(inputId = "pcntStartPopARTI",
+                                                        label = "Annual conversion risk in the start year in 5-9 year olds (%)",
+                                                        min = 0,
+                                                        max = 50,
+                                                        value = 5),
+                                            br(),
+                                            br(),
+                                            br(),
+                                           br()),
+                                    
+                                    
+                                    column(width = 12, 
+                                           
+                                           ##### Input - scenario ####
+                                           numericInput(inputId = "Scenario",
+                                                        label = "Scenario",
+                                                        min = 1,
+                                                        max = 5,
+                                                        value = 1)),
+                                    
+                                    ##### Input - change in temporal ARC ####
+                                    h4("Annual change in population conversion risk after the start year (%)",
+                                       style = "color: #007dc5; font-family: Arial"),
+                                    
+                                    column(width = numSideBarWidth, 
+                                           
+                                           numericInput(inputId = "DefaultARTIChangeOverTime",
+                                                        label = "All years",
+                                                        min = -100,
+                                                        max = 100,
+                                                        value = 0),
+                                           
+                                           uiOutput("return_changeARTIOverTime1"),
+                                           uiOutput("return_changeARTIOverTime5"),
+                                           uiOutput("return_changeARTIOverTime9"),
+                                           uiOutput("return_changeARTIOverTime13"),
+                                           uiOutput("return_changeARTIOverTime17")),
+                                    
+                                    column(width = numSideBarWidth, 
+                                           
+                                           p("", style = "margin-bottom: 85px;"),
+                                           
+                                           uiOutput("return_changeARTIOverTime2"),
+                                           uiOutput("return_changeARTIOverTime6"),
+                                           uiOutput("return_changeARTIOverTime10"),
+                                           uiOutput("return_changeARTIOverTime14"),
+                                           uiOutput("return_changeARTIOverTime18")),
+                                    
+                                    column(width = numSideBarWidth, 
+                                           
+                                           p("", style = "margin-bottom: 85px;"),
+                                           
+                                           uiOutput("return_changeARTIOverTime3"),
+                                           uiOutput("return_changeARTIOverTime7"),
+                                           uiOutput("return_changeARTIOverTime11"),
+                                           uiOutput("return_changeARTIOverTime15"),
+                                           uiOutput("return_changeARTIOverTime19")),
+                                    
+                                    column(width = numSideBarWidth, 
+                                           
+                                           p("", style = "margin-bottom: 85px;"),
+                                           
+                                           uiOutput("return_changeARTIOverTime4"),
+                                           uiOutput("return_changeARTIOverTime8"),
+                                           uiOutput("return_changeARTIOverTime12"),
+                                           uiOutput("return_changeARTIOverTime16"),
+                                           uiOutput("return_changeARTIOverTime20")),
+                                    
+                                    ##### Input - change in age-specific ARC ####
+                                    h4("Age-specific change in conversion risk in relation to risk in 5-9 year olds (factor change)",
+                                       style = "color: #007dc5; font-family: Arial" ),
+                                    
+                                    column(width = numSideBarWidth, 
+                                           
+                                           numericInput(inputId = "changePopARTI0To4",
+                                                        label = "0-4 year olds",
+                                                        min = 0.01,
+                                                        max = 30,
+                                                        value = 1),
+                                           
+                                           numericInput(inputId = "changePopARTI25To34",
+                                                        label = "25-34 year olds",
+                                                        min = 0.01,
+                                                        max = 30,
+                                                        value = 1)),
+                                    
+                                    
+                                    column(width = numSideBarWidth, 
+                                           
+                                           numericInput(inputId = "changePopARTI10To14",
+                                                        label = "10-14 year olds",
+                                                        min = 0.01,
+                                                        max = 30,
+                                                        value = 1),
+                                           
+                                           
+                                           numericInput(inputId = "changePopARTI35To44",
+                                                        label = "35-44 year olds",
+                                                        min = 0.01,
+                                                        max = 30,
+                                                        value = 1)),
+                                    
+                                    column(width = numSideBarWidth, 
+                                           
+                                           numericInput(inputId = "changePopARTI15To19",
+                                                        label = "15-19 year olds",
+                                                        min = 0.01,
+                                                        max = 30,
+                                                        value = 1),
+                                           
+                                           numericInput(inputId = "changePopARTI45To64",
+                                                        label = "45-64 year olds",
+                                                        min = 0.01,
+                                                        max = 30,
+                                                        value = 1)),
+                                    
+                                    column(width = numSideBarWidth, 
+                                           
+                                           numericInput(inputId = "changePopARTI20To24",
+                                                        label = "20-24 year olds",
+                                                        min = 0.01,
+                                                        max = 30,
+                                                        value = 1),
+                                           
+                                           
+                                           numericInput(inputId = "changePopARTI65plus",
+                                                        label = "65+ year olds",
+                                                        min = 0.01,
+                                                        max = 30,
+                                                        value = 1)),
+                                    
+                                    ##### Input - age-specific reversion probability ####
+                                    h4("Age specific reversion probability (%)",
+                                       style = "color: #007dc5; font-family: Arial"),
+                                    
+                                    column(width = numSideBarWidth,
+
+                                           numericInput(inputId = "DefaultpcntReversion",
+                                                        label = "All ages",
+                                                        min = 0,
+                                                        max = 100,
+                                                        value = 0),
+
+                                           uiOutput("return_pcntReversion0To4"),
+                                           uiOutput("return_pcntReversion20To24")),
+
+                                    column(width = numSideBarWidth,
+
+                                           p("", style = "margin-bottom: 85px;"),
+
+                                           uiOutput("return_pcntReversion5To9"),
+                                           uiOutput("return_pcntReversion25To44")),
+
+                                    column(width = numSideBarWidth,
+
+                                           p("", style = "margin-bottom: 85px;"),
+
+                                           uiOutput("return_pcntReversion10To14"),
+                                           uiOutput("return_pcntReversion45To64")),
+
+                                    column(width = numSideBarWidth,
+
+                                           p("", style = "margin-bottom: 85px;"),
+
+                                           uiOutput("return_pcntReversion15To19"),
+                                           uiOutput("return_pcntReversion65plus")),
+                                    
+
+                                    
+                                    actionButton("submit", label = "Submit"))
+
+  # Reactive plot years
+  ret_numPlotYear <- reactive({
+    
+    input$numMaxAge + input$StartYear
+    
+  })
+  
+  output$return_numPlotYear <- renderUI({
+    
+    numericInput(inputId = "numPlotYear",
+                 label = "Select plot year",
+                 value = ret_numPlotYear())
+    
+  })
+  
+  ret_numCohortPlotYear <- reactive({
+    
+    input$StartYear
+    
+  })
+  
+  output$return_numCohortPlotYear <- renderUI({
+    
+    numericInput(inputId = "numCohortPlotYear",
+                 label = "Select birth year of cohort",
+                 value = ret_numCohortPlotYear())
+    
+  })
+  
+  # Reactive ARC changes over time
+  lstAgeGroups <- c('0-4', '5-9', '10-14', '15-19', 
+                    '20-24', '25-29', '30-34', '35-39', 
+                    '40-44', '45-49', '50-54', '55-59', 
+                    '60-64', '65-69', '70-74', '75-79', 
+                    '80-84', '85-89', '90-94', '95-100')
+  
+  listNums <- c(1 : length(lstAgeGroups))
+  
+  for (i in listNums) {
+    
+    assign(paste0("ret_changeARTIOverTime", i),
+           reactive({input$DefaultARTIChangeOverTime}))
+    
+  }
+  
+  output$return_changeARTIOverTime1 <- renderUI({
+    
+    numericInput(inputId = paste0("changeARTIOverTime", 1),
+                 label = paste0(lstAgeGroups[1], " years"),
+                 min = -100, 
+                 max = 100,
+                 value = ret_changeARTIOverTime1())
+    
+  })
+
+  output$return_changeARTIOverTime2 <- renderUI({
+    
+    numericInput(inputId = paste0("changeARTIOverTime", 2),
+                 label = paste0(lstAgeGroups[2], " years"),
+                 min = -100, 
+                 max = 100,
+                 value = ret_changeARTIOverTime2())
+    
+    })
+  
+  output$return_changeARTIOverTime3 <- renderUI({
+    
+    numericInput(inputId = paste0("changeARTIOverTime", 3),
+                 label = paste0(lstAgeGroups[3], " years"),
+                 min = -100, 
+                 max = 100,
+                 value = ret_changeARTIOverTime3())
+    
+  })
+  
+  output$return_changeARTIOverTime4 <- renderUI({
+    
+    numericInput(inputId = paste0("changeARTIOverTime", 4),
+                 label = paste0(lstAgeGroups[4], " years"),
+                 min = -100, 
+                 max = 100,
+                 value = ret_changeARTIOverTime4())
+    
+  })
+  
+  output$return_changeARTIOverTime5 <- renderUI({
+    
+    numericInput(inputId = paste0("changeARTIOverTime", 5),
+                 label = paste0(lstAgeGroups[5], " years"),
+                 min = -100, 
+                 max = 100,
+                 value = ret_changeARTIOverTime5())
+    
+  })
+  
+  output$return_changeARTIOverTime6 <- renderUI({
+    
+    numericInput(inputId = paste0("changeARTIOverTime", 6),
+                 label = paste0(lstAgeGroups[6], " years"),
+                 min = -100, 
+                 max = 100,
+                 value = ret_changeARTIOverTime6())
+    
+  })
+  
+  output$return_changeARTIOverTime7 <- renderUI({
+    
+    numericInput(inputId = paste0("changeARTIOverTime", 7),
+                 label = paste0(lstAgeGroups[7], " years"),
+                 min = -100, 
+                 max = 100,
+                 value = ret_changeARTIOverTime7())
+    
+  })
+  
+  output$return_changeARTIOverTime8 <- renderUI({
+    
+    numericInput(inputId = paste0("changeARTIOverTime", 8),
+                 label = paste0(lstAgeGroups[8], " years"),
+                 min = -100, 
+                 max = 100,
+                 value = ret_changeARTIOverTime8())
+    
+  })
+  
+  output$return_changeARTIOverTime9 <- renderUI({
+    
+    numericInput(inputId = paste0("changeARTIOverTime", 9),
+                 label = paste0(lstAgeGroups[9], " years"),
+                 min = -100, 
+                 max = 100,
+                 value = ret_changeARTIOverTime9())
+    
+  })
+  
+  output$return_changeARTIOverTime10 <- renderUI({
+    
+    numericInput(inputId = paste0("changeARTIOverTime", 10),
+                 label = paste0(lstAgeGroups[10], " years"),
+                 min = -100, 
+                 max = 100,
+                 value = ret_changeARTIOverTime10())
+    
+  })
+  
+  output$return_changeARTIOverTime11 <- renderUI({
+    
+    numericInput(inputId = paste0("changeARTIOverTime", 11),
+                 label = paste0(lstAgeGroups[11], " years"),
+                 min = -100, 
+                 max = 100,
+                 value = ret_changeARTIOverTime11())
+    
+  })
+  
+  output$return_changeARTIOverTime12 <- renderUI({
+    
+    numericInput(inputId = paste0("changeARTIOverTime", 12),
+                 label = paste0(lstAgeGroups[12], " years"),
+                 min = -100, 
+                 max = 100,
+                 value = ret_changeARTIOverTime12())
+    
+  })
+  
+  output$return_changeARTIOverTime13 <- renderUI({
+    
+    numericInput(inputId = paste0("changeARTIOverTime", 13),
+                 label = paste0(lstAgeGroups[13], " years"),
+                 min = -100, 
+                 max = 100,
+                 value = ret_changeARTIOverTime13())
+    
+  })
+  
+  output$return_changeARTIOverTime14 <- renderUI({
+    
+    numericInput(inputId = paste0("changeARTIOverTime", 14),
+                 label = paste0(lstAgeGroups[14], " years"),
+                 min = -100, 
+                 max = 100,
+                 value = ret_changeARTIOverTime14())
+    
+  })
+  
+  output$return_changeARTIOverTime15 <- renderUI({
+    
+    numericInput(inputId = paste0("changeARTIOverTime", 15),
+                 label = paste0(lstAgeGroups[15], " years"),
+                 min = -100, 
+                 max = 100,
+                 value = ret_changeARTIOverTime15())
+    
+  })
+  
+  output$return_changeARTIOverTime16 <- renderUI({
+    
+    numericInput(inputId = paste0("changeARTIOverTime", 16),
+                 label = paste0(lstAgeGroups[16], " years"),
+                 min = -100, 
+                 max = 100,
+                 value = ret_changeARTIOverTime16())
+    
+  })
+  
+  output$return_changeARTIOverTime17 <- renderUI({
+    
+    numericInput(inputId = paste0("changeARTIOverTime", 17),
+                 label = paste0(lstAgeGroups[17], " years"),
+                 min = -100, 
+                 max = 100,
+                 value = ret_changeARTIOverTime17())
+    
+  })
+  
+  output$return_changeARTIOverTime18 <- renderUI({
+    
+    numericInput(inputId = paste0("changeARTIOverTime", 18),
+                 label = paste0(lstAgeGroups[18], " years"),
+                 min = -100, 
+                 max = 100,
+                 value = ret_changeARTIOverTime18())
+    
+  })
+  
+  output$return_changeARTIOverTime19 <- renderUI({
+    
+    numericInput(inputId = paste0("changeARTIOverTime", 19),
+                 label = paste0(lstAgeGroups[19], " years"),
+                 min = -100, 
+                 max = 100,
+                 value = ret_changeARTIOverTime19())
+    
+  })
+  
+  output$return_changeARTIOverTime20 <- renderUI({
+    
+    numericInput(inputId = paste0("changeARTIOverTime", 20),
+                 label = paste0(lstAgeGroups[20], " years"),
+                 min = -100, 
+                 max = 100,
+                 value = ret_changeARTIOverTime20())
+    
+  })
+  
+  # Reactive Reversion changes by age 
+  lstAgeGroupsRev <- c("0To4", "5To9", "10To14", "15To19", 
+                    "20To24", "25To44", "45To64", 
+                    "65plus")
+                    
+  lstLabelAgeGroupsRev <- c('0-4', '5-9', '10-14', '15-19', 
+                         '20-24', '25-44', '45-64',
+                         '65+')
+  
+  for (j in lstAgeGroupsRev) {
+    
+    assign(paste0("ret_pcntReversion", j),
+           reactive({input$DefaultpcntReversion}))
+    
+  }
+
+  output$return_pcntReversion0To4 <- renderUI({
+    
+    numericInput(inputId = paste0("pcntReversion", lstAgeGroupsRev[1]),
+                 label = paste0(lstLabelAgeGroupsRev[1], " years"),
+                 min = 0, 
+                 max = 100,
+                 value = ret_pcntReversion0To4())
+    
+  })
+  
+  output$return_pcntReversion5To9 <- renderUI({
+    
+    numericInput(inputId = paste0("pcntReversion", lstAgeGroupsRev[2]),
+                 label = paste0(lstLabelAgeGroupsRev[2], " years"),
+                 min = 0, 
+                 max = 100,
+                 value = ret_pcntReversion5To9())
+    
+  })
+  
+  output$return_pcntReversion10To14 <- renderUI({
+    
+    numericInput(inputId = paste0("pcntReversion", lstAgeGroupsRev[3]),
+                 label = paste0(lstLabelAgeGroupsRev[3], " years"),
+                 min = 0, 
+                 max = 100,
+                 value = ret_pcntReversion10To14())
+    
+  })
+  
+  output$return_pcntReversion15To19 <- renderUI({
+    
+    numericInput(inputId = paste0("pcntReversion", lstAgeGroupsRev[4]),
+                 label = paste0(lstLabelAgeGroupsRev[4], " years"),
+                 min = 0, 
+                 max = 100,
+                 value = ret_pcntReversion15To19())
+    
+  })
+  
+  output$return_pcntReversion20To24 <- renderUI({
+    
+    numericInput(inputId = paste0("pcntReversion", lstAgeGroupsRev[5]),
+                 label = paste0(lstLabelAgeGroupsRev[5], " years"),
+                 min = 0, 
+                 max = 100,
+                 value = ret_pcntReversion20To24())
+    
+  })
+  
+  output$return_pcntReversion25To44 <- renderUI({
+    
+    numericInput(inputId = paste0("pcntReversion", lstAgeGroupsRev[6]),
+                 label = paste0(lstLabelAgeGroupsRev[6], " years"),
+                 min = 0, 
+                 max = 100,
+                 value = ret_pcntReversion25To44())
+    
+  })
+  
+  output$return_pcntReversion45To64 <- renderUI({
+    
+    numericInput(inputId = paste0("pcntReversion", lstAgeGroupsRev[7]),
+                 label = paste0(lstLabelAgeGroupsRev[7], " years"),
+                 min = 0, 
+                 max = 100,
+                 value = ret_pcntReversion45To64())
+    
+  })
+  
+  output$return_pcntReversion65plus <- renderUI({
+    
+    numericInput(inputId = paste0("pcntReversion", lstAgeGroupsRev[8]),
+                 label = paste0(lstLabelAgeGroupsRev[8], " years"),
+                 min = 0, 
+                 max = 100,
+                 value = ret_pcntReversion65plus())
+    
+  })
+  
+  
+  # observeEvent(input$DefaultpcntReversion != input$pcntReversion65plus,{
+  #   numericInput(inputId = "DefaultpcntReversion",
+  #                label = "All ages",
+  #                min = 0,
+  #                max = 100,
+  #                value = "")
+  # }) # close observe event
+  
+
+  ##### Model creation #####
+  model <- eventReactive( input$submit, {
+    
+    # Inputs
+    numMinAge <- 0 
+    numMaxAge <- input$numMaxAge # The difference between the min and max age defines the analysis period
+    numStartYear <- input$StartYear
+    pcntStartPopARTI <- input$pcntStartPopARTI
+    
+    listAge <- c(seq(numMinAge, numMaxAge, 1))
+    listYears <- rev(c(seq(1, length(listAge), 1)))
+    listYearNames <- rev(c(seq(numStartYear, numStartYear + length(listAge) - 1, 1)))
+    numFinalYear <- max(listYears)
+    numNameFinalYear <- numStartYear + numMaxAge
+    numPlotYear <- input$numPlotYear
+    
+    # Put all the various input values into lists and datatables
+    pcntChangePopARTIOverEvery5years <- c(input$changeARTIOverTime1,
+                                          input$changeARTIOverTime2,
+                                          input$changeARTIOverTime3,
+                                          input$changeARTIOverTime4,
+                                          input$changeARTIOverTime5,
+                                          input$changeARTIOverTime6,
+                                          input$changeARTIOverTime7,
+                                          input$changeARTIOverTime8,
+                                          input$changeARTIOverTime9,
+                                          input$changeARTIOverTime10,
+                                          input$changeARTIOverTime11,
+                                          input$changeARTIOverTime12,
+                                          input$changeARTIOverTime13,
+                                          input$changeARTIOverTime14,
+                                          input$changeARTIOverTime15,
+                                          input$changeARTIOverTime16,
+                                          input$changeARTIOverTime17,
+                                          input$changeARTIOverTime18,
+                                          input$changeARTIOverTime19,
+                                          input$changeARTIOverTime20)
+    
+    #pcntChangePopARTIOverEvery5years <- rbind(mget(paste0("input$changeARTIOverTime", c(1 : 20))))
+    
+    tabAgeParams <- data.frame(Age = 0:100)
+    setDT(tabAgeParams)
+    tabAgeParams[Age < 5, AgeARTIChange := input$changePopARTI0To4]
+    tabAgeParams[Age > 4 & Age < 10, AgeARTIChange := 1]
+    tabAgeParams[Age > 9 & Age < 15, AgeARTIChange := input$changePopARTI10To14]
+    tabAgeParams[Age > 14 & Age < 20, AgeARTIChange := input$changePopARTI15To19]
+    tabAgeParams[Age > 19 & Age < 25, AgeARTIChange := input$changePopARTI20To24]
+    tabAgeParams[Age > 24 & Age < 35, AgeARTIChange := input$changePopARTI25To34]
+    tabAgeParams[Age > 34 & Age < 45, AgeARTIChange := input$changePopARTI35To44]
+    tabAgeParams[Age > 44 & Age < 65, AgeARTIChange := input$changePopARTI45To64]
+    tabAgeParams[Age > 64, AgeARTIChange := input$changePopARTI65plus]
+    tabAgeParams <- tabAgeParams[Age >= numMinAge & Age <= numMaxAge]
+    
+    tabAgeParams[Age < 5, Reversion := input$pcntReversion0To4]
+    tabAgeParams[Age > 4 & Age < 10, Reversion := input$pcntReversion5To9]
+    tabAgeParams[Age > 9 & Age < 15, Reversion := input$pcntReversion10To14]
+    tabAgeParams[Age > 14 & Age < 20, Reversion := input$pcntReversion15To19]
+    tabAgeParams[Age > 19 & Age < 25, Reversion := input$pcntReversion20To24]
+    tabAgeParams[Age > 24 & Age < 45, Reversion := input$pcntReversion25To44]
+    tabAgeParams[Age > 44 & Age < 65, Reversion := input$pcntReversion45To64]
+    tabAgeParams[Age > 64, Reversion := input$pcntReversion65plus]
+    
+    listChangeInRiskOverTime <- unlist(lapply(pcntChangePopARTIOverEvery5years, 
+                                              function(x) rep(x, 5)))
+    
+    # Create look-up tables of probabilities of infection and reversion
+    
+    dfData <- data.frame(CohortYob = listYearNames)
+    
+    tabYearParams <- data.frame(YearName = rev(listYearNames),
+                                YearRiskChange = 
+                                  c(0, listChangeInRiskOverTime[1:(length(listYearNames) - 1)]))
+    
+    setDT(tabYearParams)
+    setDT(dfData)
+    
+    ###### Validation ######
+    # The validate function below checks the condition below is met
+    # before moving on, otherwise it return the text.
+    validate(
+      need(input$numPlotYear >= numStartYear &
+             input$numPlotYear <= numStartYear + numMaxAge,
+           "Please select a plot year between the start year and the start year + the maximum age")
+    )
+    
+    validate(
+      need(input$numCohortPlotYear >= numStartYear &
+             input$numCohortPlotYear < numStartYear + numMaxAge,
+           "Please select a birth cohort born between the start year and the start year + the maximum age")
+    )
+    
+    # validate(
+    #   need(all(unlist(lapply(tabYearParams$pop.ARTI, function(x) tabAgeParams$AgeARTIChange * x)) <= 1),
+    #        "Please make sure that age-specific risks don't exceed 100%")
+    # )
+    
+    # Work out the yearly ARTI
+    # Simple, probably slow, loop to work out changes in ARTI
+    newARTI <- pcntStartPopARTI / 100
+    listy <- c()
+    
+    for (x in tabYearParams$YearRiskChange) {
+      
+      newARTI <- newARTI + ((x / 100) * newARTI)
+      listy <- append(listy, newARTI)
+      
+    }
+    
+    tabYearParams[, pop.ARTI := listy]
+    tabYearParams[, pop.ARTI := ifelse(pop.ARTI > 1, 1, pop.ARTI)]
+    
+    # Create the output table with a row for each year for each birth cohort.
+    dfData <- expand.grid(CohortYob = listYearNames,
+                          CalcYear = listAge + 1)
+    setDT(dfData)
+    dfData[, CalcYearName := paste0("Risk.y", as.character(CalcYear))]
+    dfData[, YearName := CohortYob + CalcYear - 1]
+    dfData[, CalcYear := NULL]
+    
+    # Merge in the population ARTI in each year
+    dfData <- merge(dfData, tabYearParams, by = c("YearName"), all.x = T)
+    
+    # Only keep years between the start and end year
+    dfData <- dfData[YearName < numFinalYear + numStartYear]
+    
+    # Reshape the dataset to wide, so there is a row per birth cohort, and 
+    # years along the top
+    dfData <- dcast(dfData[, .(CohortYob, CalcYearName, pop.ARTI)], 
+                    CohortYob ~ CalcYearName)
+    setDT(dfData)
+    
+    # Add some columns to take the cumulative reactivity
+    dfData[, (paste0("y", as.character(listAge + 1))) := as.numeric(list(NA))]
+    dfData[, FinalAge := numNameFinalYear - CohortYob]
+    dfData[, calcyears := FinalAge + 1]
+    
+    # Reactivity calculation function, with age as the input
+    # First year calculation
+    dfData[, y1 := Risk.y1 * tabAgeParams[Age == 0, AgeARTIChange]]
+    
+    dfDataNoRev <- copy(dfData)
+    
+    ReactivityFunction <- function (x) {
+      
+      setnames(dfData, which(colnames(dfData) == paste0("y", as.character(x - 1))), "ref")
+      setnames(dfData, which(colnames(dfData) == paste0("y", as.character(x))), "new.col")
+      setnames(dfData, which(colnames(dfData) == paste0("Risk.y", as.character(x))), "arti")
+      dfData[, YearName := CohortYob + (x - 1)]
+      dfData[calcyears >= x, new.col := ref + 
+               ((1 - ref) * (arti * tabAgeParams[Age == x - 1, AgeARTIChange])) - 
+               (ref * (tabAgeParams[Age == x - 1, Reversion] / 100))]
+      dfData[, YearName := NULL]
+      setnames(dfData, "new.col", paste0("y", as.character(x)))
+      setnames(dfData, "ref", paste0("y", as.character(x - 1)))
+      setnames(dfData, "arti", paste0("Risk.y", as.character(x)))
+      
+    }
+    
+    out <- lapply(2 : numFinalYear, ReactivityFunction)
+    rm(out)
+    
+    ReactivityFunctionNoReversion <- function (x) {
+      
+      setnames(dfDataNoRev, which(colnames(dfDataNoRev) == paste0("y", as.character(x - 1))), "ref")
+      setnames(dfDataNoRev, which(colnames(dfDataNoRev) == paste0("y", as.character(x))), "new.col")
+      setnames(dfDataNoRev, which(colnames(dfDataNoRev) == paste0("Risk.y", as.character(x))), "arti")
+      dfDataNoRev[, YearName := CohortYob + (x - 1)]
+      dfDataNoRev[calcyears >= x, new.col := ref + 
+                    ((1 - ref) * (arti * tabAgeParams[Age == x - 1, AgeARTIChange]))]
+      dfDataNoRev[, YearName := NULL]
+      setnames(dfDataNoRev, "new.col", paste0("y", as.character(x)))
+      setnames(dfDataNoRev, "ref", paste0("y", as.character(x - 1)))
+      setnames(dfDataNoRev, "arti", paste0("Risk.y", as.character(x)))
+      
+    }
+    
+    out <- lapply(2 : numFinalYear, ReactivityFunctionNoReversion)
+    rm(out)
+    
+    # Creating a dataset showing reactivity in a particular year
+    dfDataSub <- dfData[CohortYob <= numPlotYear]
+    dfDataSub[, column.name := paste0("y", numPlotYear - CohortYob + 1)]
+    dfDataSub[, reactivity := get(column.name), 1:nrow(dfDataSub)]
+    dfDataSub[, FinalAge := numPlotYear - CohortYob]
+    
+    # Creating a dataset showing reactivity in a particular year, with reversion
+    dfDataNoRevSub <- dfDataNoRev[CohortYob <= numPlotYear]
+    dfDataNoRevSub[, column.name := paste0("y", numPlotYear - CohortYob + 1)]
+    dfDataNoRevSub[, reactivity := get(column.name), 1:nrow(dfDataNoRevSub)]
+    dfDataNoRevSub[, FinalAge := numPlotYear - CohortYob]
+    
+    # Get the risk experienced in the cohort in the plot year
+    dfDataSub[, column.name.risk := paste0("Risk.y", numPlotYear - CohortYob + 1)]
+    dfDataSub[, current.risk := get(column.name.risk), 1:nrow(dfDataSub)]
+    
+    # Get the risk experienced in the cohort in the plot year
+    dfDataNoRevSub[, column.name.risk := paste0("Risk.y", numPlotYear - CohortYob + 1)]
+    dfDataNoRevSub[, current.risk := get(column.name.risk), 1:nrow(dfDataNoRevSub)]
+    
+    ##### Cross-sectional plot creation #####
+    plot <- dfDataSub[, c("FinalAge", "reactivity")]
+    plotno.rev <- dfDataNoRevSub[, c("FinalAge", "reactivity")]
+    plot <- merge(plot, plotno.rev, by = c("FinalAge"))
+    
+    # make up difference so that the plot dimensions remain the same
+    plot2 <- data.frame(FinalAge = c((max(plot$FinalAge) + 1):numMaxAge), 
+                        reactivity.x = NA, reactivity.y = NA)
+    plot <- rbind(plot, plot2)
+    plot[, match := reactivity.x - reactivity.y]
+    RevOrNot <- ifelse(sum(plot$match, na.rm = T) == 0, "No", "Yes")
+    plot[, match := NULL]
+    setnames(plot, "reactivity.x", "With reversion\nprobability")
+    setnames(plot, "reactivity.y", "Without reversion\nprobability")
+    plot <- melt(plot, id = c("FinalAge"))
+    
+    text.size <- 15
+    text.colour <- "black"
+    dist <- 6
+    numGeomLineSize <- 1.2
+    
+    if (RevOrNot == "No") {
+      
+      cols <- c("Without reversion\nprobability" = colMidBlue)
+      
+      setDT(plot)
+      plot <- plot[variable == "Without reversion\nprobability"]
+      
+      CrosssectionalPlot <- 
+        ggplot(plot, aes(x = FinalAge, y = value * 100,
+                         colour = variable))+
+        geom_line(size = numGeomLineSize) +
+        labs(x = "Age (years)", 
+             y = "Tuberculous immunoreactivity (%)",
+             colour = "") +
+        coord_cartesian(ylim = c(0, 100), xlim = c(0, numMaxAge)) +
+        scale_y_continuous(breaks = c(seq(0, 100, 10))) +
+        scale_x_continuous(breaks = c(seq(0, 100, 10))) +
+        scale_colour_manual(values = cols) +
+        #to turn the background white
+        theme_bw() +
+        #to eliminate background, gridlines, and chart border
+        theme(
+          panel.border = element_blank(),
+          plot.background = element_blank(),
+          #legend.position = c(0.3, 0.8),
+          text = element_text(size = text.size),
+          #legend.position = "none",
+          axis.title.x = element_text(margin = margin(t = dist, r = 0, b = 0, l = 0),
+                                      size = text.size, color = text.colour),
+          axis.title.y = element_text(margin = margin(t = 0, r = dist, b = 0, l = 0),
+                                      size = text.size, color = text.colour),
+          axis.text.x = element_text(margin = margin(t = dist, r = 0, b = 0, l = 0),
+                                     size = text.size, color = text.colour),
+          axis.text.y = element_text(margin = margin(t = 0, r = dist, b = 0, l = 0),
+                                     size = text.size, color = text.colour),
+          axis.line = element_line(color = text.colour))
+      
+    } else {
+      
+      cols <- c("With reversion\nprobability" = colMidBlue, 
+                "Without reversion\nprobability" = colOrange)
+      
+      CrosssectionalPlot <- 
+        #ggplotly(
+          ggplot(plot, aes(x = FinalAge, y = value * 100,
+                         colour = variable))+
+        geom_line(size = numGeomLineSize) +
+        labs(x = "Age (years)", 
+             y = "Tuberculous immunoreactivity (%)",
+             colour = "") +
+        coord_cartesian(ylim = c(0, 100), xlim = c(0, numMaxAge)) +
+        scale_y_continuous(breaks = c(seq(0, 100, 10))) +
+        scale_x_continuous(breaks = c(seq(0, 100, 10))) +
+        scale_colour_manual(values = cols) +
+        #to turn the background white
+        theme_bw() +
+        #to eliminate background, gridlines, and chart border
+        theme(
+          panel.border = element_blank(),
+          plot.background = element_blank(),
+          #legend.position = c(0.3, 0.8),
+          text = element_text(size = text.size),
+          legend.text = element_text(size = text.size),
+          axis.title.x = element_text(margin = margin(t = dist, r = 0, b = 0, l = 0),
+                                      size = text.size, color = text.colour),
+          axis.title.y = element_text(margin = margin(t = 0, r = dist, b = 0, l = 0),
+                                      size = text.size, color = text.colour),
+          axis.text.x = element_text(margin = margin(t = dist, r = 0, b = 0, l = 0),
+                                     size = text.size, color = text.colour),
+          axis.text.y = element_text(margin = margin(t = 0, r = dist, b = 0, l = 0),
+                                     size = text.size, color = text.colour),
+          axis.line = element_line(color = text.colour))
+      #)
+      
+    }
+    
+    
+    ##### Birthcohort plot creation #####
+    numCohortPlotYear <- input$numCohortPlotYear
+    
+    plot <- dfData[CohortYob == numCohortPlotYear]
+    
+    plot <- data.frame(t(plot))
+    plot$age <- row.names(plot)
+    setDT(plot)
+    plot <- plot[!age %like% "Risk"]
+    plot <- plot[!age %in% c("CohortYob", "FinalAge",
+                             "calcyears", "column.ref",
+                             "column.name", "reactivity")]
+    plot[, age := sub("y", "", age)]
+    plot[, age := as.numeric(age) - 1]
+    
+    plotno.rev <- dfDataNoRev[CohortYob == numCohortPlotYear]
+    
+    plotno.rev <- data.frame(t(plotno.rev))
+    plotno.rev$age <- row.names(plotno.rev)
+    setDT(plotno.rev)
+    plotno.rev <- plotno.rev[!age %like% "Risk"]
+    plotno.rev <- plotno.rev[!age %in% c("CohortYob", "FinalAge",
+                                         "calcyears", "column.ref",
+                                         "column.name", "reactivity")]
+    plotno.rev[, age := sub("y", "", age)]
+    plotno.rev[, age := as.numeric(age) - 1]
+    
+    plot <- merge(plot, plotno.rev, by = c("age"))
+    plot[, age := as.numeric(age)]
+    setnames(plot, "t.plot.", "With reversion\nprobability")
+    setnames(plot, "t.plotno.rev.", "Without reversion\nprobability")
+    plot <- melt(plot, id = c("age"))
+    setDT(plot)
+    plot[, value := as.numeric(value)]
+    
+    BirthCohortPlot <- 
+       #ggplotly(
+         ggplot(plot, aes(x = age, y = value * 100,
+                       colour = variable))+
+      geom_line(size = numGeomLineSize) +
+      labs(x = "Age (years)",
+           y = "Tuberculous immunoeactivity (%)",
+           colour = "") +
+      scale_colour_manual(values = cols) +
+      coord_cartesian(ylim = c(0, 100), xlim = c(0, numMaxAge)) +
+      scale_y_continuous(breaks = c(seq(0, 100, 10))) +
+      scale_x_continuous(breaks = c(seq(0, 100, 10))) +
+      #to turn the background white
+      theme_bw() +
+      #to eliminate background, gridlines, and chart border
+      theme(
+        panel.border = element_blank(),
+        plot.background = element_blank(),
+        #legend.position = "none",
+        text = element_text(size = text.size),
+        legend.text = element_text(size = text.size),
+        axis.title.x = element_text(margin = margin(t = dist, r = 0, b = 0, l = 0),
+                                    size = text.size, color = text.colour),
+        axis.title.y = element_text(margin = margin(t = 0, r = dist, b = 0, l = 0),
+                                    size = text.size, color = text.colour),
+        axis.text.x = element_text(margin = margin(t = dist, r = 0, b = 0, l = 0),
+                                   size = text.size, color = text.colour),
+        axis.text.y = element_text(margin = margin(t = 0, r = dist, b = 0, l = 0),
+                                   size = text.size, color = text.colour),
+        axis.line = element_line(color = text.colour))
+    #)
+    
+    ##### CrosssectionalTable table creation #####
+    # Convert the reactivity 'risks' to rates, to find the  population average
+    # and average by agegroup
+    numMaxAgeSub <- numPlotYear - numStartYear
+    
+    dfDataTab <- dfDataSub[, .(FinalAge, reactivity)]
+    dfDataNoRevTab <- dfDataNoRevSub[, .(FinalAge, reactivity)]
+    
+    RiskTRateFunction <- function(dt) {
+      
+      dt[, Agegroup := as.factor(cut(FinalAge, 
+                                     breaks = c(-1, 4, 9,
+                                                14, 19, 24, 34,
+                                                44, 64, 120),
+                                     labels = c('0-4','5-9', '10-14','15-19',
+                                                '20-24','25-34', '35-44',
+                                                '45-64','65+')))]
+      
+      dt[, RatePerYear := -(1/1) * log(1 - reactivity)]
+      #### NEED TO KNOW AGE STRUCTURE TO DO THIS #### Leave out pop-wide values
+      PopRisk <- 1 - exp(- mean(dt$RatePerYear, na.rm = T) * 1)
+      dt <- dt[, .(Reactivity = 1 - exp(- mean(RatePerYear) * 1),
+                   MeanAge = mean(FinalAge)), by = c("Agegroup")]
+      PopRisk <- data.frame(Agegroup = "All ages", Reactivity = PopRisk,
+                            MeanAge = mean(0 : numMaxAgeSub))
+      dt <- rbind(PopRisk, dt)
+      setDT(dt)
+      dt[, RatePerYear := -(1 / (MeanAge + 1)) * log(1- Reactivity)]
+      dt[, ARTI := (1 - exp(-RatePerYear * 1)) * 100]
+      dt[, Reactivity := as.character(round(Reactivity * 100, 0))]
+
+      # # dt[, RatePerYear := -(1/1) * log(1 - reactivity)]
+      # ##### NEED TO KNOW AGE STRUCTURE TO DO THIS #### Leave out pop-wide values for the moment
+      # #PopRisk <- 1 - exp(- mean(dt$RatePerYear, na.rm = T) * 1)
+      # dt <- dt[, .(Reactivity = 1 - exp(- mean(RatePerYear) * 1),
+      #              ReactivityAG = 1 - exp(- mean(RatePerYear) * (mean(FinalAge) + 1)),
+      #              MeanAge = mean(FinalAge)), by = c("Agegroup")]
+      # # PopRisk <- data.frame(Agegroup = "All ages", Reactivity = PopRisk, 
+      # #                       MeanAge = mean(0 : numMaxAgeSub))
+      # #dt <- rbind(PopRisk, dt)
+      # setDT(dt)
+      # dt[, RatePerYear := -(1 / (MeanAge + 1)) * log(1- Reactivity)]
+      # dt[, ARTI := ReactivityAG]
+      # dt[, ReactivityAG := NULL]
+      # dt[, Reactivity := as.character(round(Reactivity * 100, 0))]
+      
+    }
+    
+    dfDataTab <- RiskTRateFunction(dfDataTab)
+    dfDataNoRevTab <- RiskTRateFunction(dfDataNoRevTab)
+    
+    
+    TableSortFunction <- function(dt, dtrev) {
+      
+      setnames(dtrev, "Reactivity", "ReactivityNoRev")
+      setnames(dtrev, "ARTI", "ARTI.True")
+      
+      dt <- merge(dt, dtrev, by = c("Agegroup", "MeanAge"),
+                  all = T)
+      dt[, Diff := ARTI.True/ARTI]
+      numSumDiff <- sum(dt$Diff)
+      
+      if ("CurrentRiskPcnt" %in% names(dt)) {
+        
+        dt[, Diff2 := as.character(round(as.numeric(CurrentRiskPcnt) / ARTI, 1))]
+        dt[, Diff2 := ifelse(Diff2 == "1", "None", Diff2)]
+        
+      }
+      
+      # Tidy
+      dt[, Agegroup := factor(Agegroup, levels = c('All ages', '0-4','5-9',
+                                                   '10-14','15-19','20-24','25-34',
+                                                   '35-44', '45-64','65+'))]
+      dt <- dt[order(Agegroup)]
+      dt[, MeanAge := NULL]
+      dt[, RatePerYear.x := NULL]
+      dt[, RatePerYear.y := NULL]
+      dt[, ARTI := as.character(round(ARTI, 1))]
+      dt[, ARTI.True := as.character(round(ARTI.True, 1))]
+      setnames(dt, "ARTI", "Calculated ARC throughout life, assuming a constant ARC and no reversion (%)*")
+      setnames(dt, "Agegroup", "Age in the plot year (years)")
+      setnames(dt, "Reactivity", "Observed immunoreactivity (%) - blue line")
+      setnames(dt, "ARTI.True", "Calculated ARC throughout life, assuming a constant ARC and reversion (%)^")
+      setnames(dt, "ReactivityNoRev", "Immunoreactivity, assuming no reversion (%) - orange line")
+      setnames(dt, "Diff", "Underestimation of lifetime ARC, when assuming a constant ARC and no reversion")
+      
+      dt <- dt[!is.na(`Observed immunoreactivity (%) - blue line`), ]
+      
+      if (dt[, sum(as.numeric(`Underestimation of lifetime ARC, when assuming a constant ARC and no reversion`))] == nrow(dt)) {
+        
+        dt[, `Immunoreactivity, assuming no reversion (%) - orange line` := NULL]
+        dt[, `Calculated ARC throughout life, assuming a constant ARC and reversion (%)^` := NULL]
+        dt[, `True annual risk of conversion (%)` := NULL]
+        dt[, `Underestimation of lifetime ARC, when assuming a constant ARC and no reversion` := NULL]
+        
+      } else {
+        
+        dt[, `Underestimation of lifetime ARC, when assuming a constant ARC and no reversion` :=
+             round(`Underestimation of lifetime ARC, when assuming a constant ARC and no reversion`, 1)]
+        dt[, `Underestimation of lifetime ARC, when assuming a constant ARC and no reversion` :=
+             ifelse(`Underestimation of lifetime ARC, when assuming a constant ARC and no reversion` == "1",
+                    "None", `Underestimation of lifetime ARC, when assuming a constant ARC and no reversion`)]
+
+      }
+      
+      
+      
+      return(dt)
+      
+    }
+    
+    ##### NEED TO KNOW AGE STRUCTURE TO DO THIS #### Leave out pop-wide values
+    CurrentRisk <- mean(dfDataSub$current.risk, na.rm = T)
+    dfDataSub[, Agegroup := as.factor(cut(FinalAge, 
+                                          breaks = c(-1, 4, 9,
+                                                     14, 19, 24, 34,
+                                                     44, 64, 120),
+                                          labels = c('0-4','5-9', '10-14','15-19',
+                                                     '20-24', '25-34','35-44',
+                                                     '45-64','65+')))]
+    dfDataTab2 <- dfDataSub[, .(Current = mean(current.risk)), 
+                            by = c("Agegroup")]
+    dfDataTab2[, Current := Current * 100]
+    dfDataTab2[Agegroup == "0-4", CurrentRiskPcnt := as.character(round(Current * input$changePopARTI0To4, 2))]
+    dfDataTab2[Agegroup == "5-9", CurrentRiskPcnt := as.character(round(Current, 2))]
+    dfDataTab2[Agegroup == "10-14", CurrentRiskPcnt := as.character(round(Current * input$changePopARTI10To14, 2))]
+    dfDataTab2[Agegroup == "15-19", CurrentRiskPcnt := as.character(round(Current * input$changePopARTI15To19, 2))]
+    dfDataTab2[Agegroup == "20-24", CurrentRiskPcnt := as.character(round(Current * input$changePopARTI20To24, 2))]
+    dfDataTab2[Agegroup == "25-34", CurrentRiskPcnt := as.character(round(Current * input$changePopARTI25To34, 2))]
+    dfDataTab2[Agegroup == "35-44", CurrentRiskPcnt := as.character(round(Current * input$changePopARTI35To44, 2))]
+    dfDataTab2[Agegroup == "45-64", CurrentRiskPcnt := as.character(round(Current * input$changePopARTI45To64, 2))]
+    dfDataTab2[Agegroup == "65+", CurrentRiskPcnt := as.character(round(Current * input$changePopARTI65plus, 2))]
+    dfDataTab2[, Current := NULL]
+    PopRisk <- data.frame(Agegroup = "All ages", CurrentRiskPcnt = CurrentRisk)
+    dfDataTab2 <- rbind(PopRisk, dfDataTab2)
+    
+    dfDataTab <- merge(dfDataTab, dfDataTab2, by = c("Agegroup"), all = T)
+    
+    dfDataTab <- TableSortFunction(dfDataTab, dfDataNoRevTab)
+  
+    # Move the CurrentRiskPcnt column to the end
+    listColOrder <- names(dfDataTab)
+    listColOrder <- listColOrder[-which(names(dfDataTab) == "CurrentRiskPcnt")]
+    listColOrder <- listColOrder[-which(listColOrder == "Diff2")]
+    listColOrder <- append(listColOrder, "CurrentRiskPcnt")
+    listColOrder <- append(listColOrder, "Diff2")
+    dfDataTab <- dfDataTab[, ..listColOrder]
+    
+    #dfDataTab[, Diff2 := ifelse(Diff2 == "1.00", "No underestimation", Diff2)]
+    
+    setnames(dfDataTab, "CurrentRiskPcnt", "Experienced ARC in the plot year")
+    setnames(dfDataTab, "Diff2", "Underestimation of ARC in the plot year, when assuming a constant ARC and no reversion")
+    
+    ##### BirthCohort table creation #####
+    dfDataSubBC <- copy(plot[variable == "With reversion\nprobability"])
+    dfDataNoRevSubBC <- copy(plotno.rev)
+    dfDataSubBC[, FinalAge := as.numeric(age)]
+    dfDataNoRevSubBC[, FinalAge := as.numeric(age)]
+    setnames(dfDataSubBC, "value", "reactivity")
+    setnames(dfDataNoRevSubBC, "t.plotno.rev.", "reactivity")
+    
+    # Convert the reactivity 'risks' to rates, to find the  population average
+    # and average by agegroup
+    numMaxAgeSub <- (numStartYear + numMaxAge) - numCohortPlotYear
+    
+    dfDataSubBC <- RiskTRateFunction(dfDataSubBC)
+    dfDataNoRevSubBC <- RiskTRateFunction(dfDataNoRevSubBC)
+    
+    dfDataSubBC <- TableSortFunction(dfDataSubBC, dfDataNoRevSubBC)
+    
+    setnames(dfDataSubBC, "Age in the plot year (years)", "Age (years)")
+    
+    # Get rid of the "all ages" row for now
+    dfDataTab <- setDT(dfDataTab[`Age in the plot year (years)` != "All ages"])
+    dfDataSubBC <- setDT(dfDataSubBC[`Age (years)` != "All ages"])
+    
+    CrosssectionalTable <- copy(dfDataTab)
+    
+    BirthCohortTable <- copy(dfDataSubBC)
+    
+    out <- list(CrosssectionalPlot = CrosssectionalPlot, 
+                CrosssectionalTable = CrosssectionalTable, 
+                BirthCohortPlot = BirthCohortPlot, 
+                BirthCohortTable = BirthCohortTable)
+    
+    
+  })
+  
+  ##### Rendering the output
+  output$CrosssectionalPlot <- renderPlot({
+    
+    model()$CrosssectionalPlot
+    
+  })
+  
+  output$CrosssectionalTable <- renderTable({
+    
+    model()$CrosssectionalTable
+    
+  })
+  
+  output$BirthCohortPlot <- renderPlot({
+    
+    model()$BirthCohortPlot
+    
+  })
+  
+  output$BirthCohortTable <- renderTable({
+    
+    model()$BirthCohortTable
+    
+  })
+
+```
+
+Column {data-width=400}
+-----------------------------------------------------------------------
+
+###  {.no-padding}
+
+```{r}
+                                  
+##### Input - cross-sectional plot year #####
+#img(src = 'DohertyImage.png', height = '100px', 
+#    width = '400px', align = "right"),
+h3(paste0("Tuberculous immunoreactivity in a selected year by age (cross-sectional)"),
+   style = "color: #007dc5; font-family: Arial")
+   
+##### Input - Birth cohort plot year #####
+
+##### Output - cross-sectional plot #####
+plotOutput(outputId = "CrosssectionalPlot")       
+# ##### Output - Birth cohort plot #####
+# plotOutput(outputId = "BirthCohortPlot")
+##### Output - cross-sectional dataset #####
+tableOutput(outputId = "CrosssectionalTable")                                       
+##### Output - Birth cohort table #####
+#tableOutput(outputId = "BirthCohortTable")
+                                            
+p("*Assuming no temporal or age related change in risk, or reversion",
+  style = "color:black;text-align:justify;font-family: Arial")
+                             
+##### Output - cross-sectional plot #####
+h3(paste0("Tuberculous immunoreactivity overtime in a selected birth cohort"),
+                                                      style = "color: #007dc5; font-family: Arial")
+
+plotOutput(outputId = "BirthCohortPlot")
+tableOutput(outputId = "BirthCohortTable")
+
+
+
+```
